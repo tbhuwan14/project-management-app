@@ -14,11 +14,20 @@ export { CHILD_TYPE, type NodeEdit };
  * folder, workspace) that is itself viewable but whose only children are
  * denied to this user ends up with zero visible children — a real node with
  * nothing underneath and nothing the user can do about it. An admin can
- * still add structure under it, so we only hide it for users who can't
- * manage containers. Pass-through ancestors (dimmed, on the path to a
- * granted descendant) are never touched here — by construction they always
- * have at least one surviving child, and they must stay visible as
- * navigation context regardless.
+ * still add structure under it, so a directly-viewable dead end is only
+ * hidden from users who can't manage containers.
+ *
+ * Pass-through ancestors (dimmed, on the path to a granted descendant) are
+ * only ever justified by a surviving descendant — that invariant holds for
+ * the *raw* tree (selectVisibleTree only marks a node pass-through when it
+ * is an ancestor of some viewable id), but pruning a childless dead end out
+ * of the middle of a chain can leave a pass-through node with nothing left
+ * to lead to. Recursion here already prunes bottom-up — children are fully
+ * resolved before a node is judged — so re-checking a pass-through node's
+ * emptiness *after* its children are pruned reaches a fixpoint in this same
+ * single traversal: a stranded pass-through node is removed here, which can
+ * in turn strand its own pass-through parent, which is caught on the way
+ * back up the recursion, and so on to the root.
  *
  * This only affects what Sidebar renders; selectVisibleTree itself (the
  * permission-model selector) is untouched.
@@ -27,7 +36,11 @@ function pruneDeadEnds(nodes: TreeNode[], canManage: boolean): TreeNode[] {
   const result: TreeNode[] = [];
   for (const node of nodes) {
     const children = pruneDeadEnds(node.children, canManage);
-    const isDeadEnd = node.container.type !== 'list' && !node.passThrough && !canManage && children.length === 0;
+    const childless = node.container.type !== 'list' && children.length === 0;
+    // A pass-through node with nothing left beneath it has nothing left to
+    // navigate to, regardless of who's looking. A directly-viewable dead end
+    // is only hidden from users who can't manage containers.
+    const isDeadEnd = childless && (node.passThrough || !canManage);
     if (isDeadEnd) continue;
     result.push(children === node.children ? node : { ...node, children });
   }

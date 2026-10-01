@@ -5,7 +5,10 @@ import { act } from 'react';
 import { FAKE_LATENCY } from '../../api/fakeApi';
 import { renderApp } from '../../test/renderApp';
 import { setCurrentUser, setSimulateFailures } from '../../store/slices/sessionSlice';
+import { containersAdapter } from '../../store/slices/containersSlice';
+import { grantsAdapter } from '../../store/slices/grantsSlice';
 import { containersSelectors } from '../../store/store';
+import type { Container, Grant } from '../../types';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
 
@@ -100,4 +103,49 @@ test('for Carol, a pass-through ancestor renders dimmed and is not selectable', 
   const before = store.getState().ui.selectedListId;
   await user.click(screen.getByText('Marketing'));
   expect(store.getState().ui.selectedListId).toBe(before);
+});
+
+test('a pass-through ancestor stranded by dead-end pruning is pruned too, not left as a new dead end', () => {
+  // Synthetic tree (not the seed): a private space is pass-through only
+  // because its one child folder is viewable via a direct grant — but that
+  // folder's own only child is denied, so the folder itself is a P15-5 dead
+  // end and gets pruned. Once the folder is gone, the space has nothing left
+  // to lead to and must be pruned too, instead of surfacing one level up as
+  // the exact "visible branch, no children, no expand arrow" bug P15-5 was
+  // written to fix. A sibling branch with a real, always-visible list is
+  // included as a control: it proves the fix prunes precisely the stranded
+  // branch rather than collapsing the whole tree by accident.
+  const T0 = '2026-01-01T00:00:00.000Z';
+  const container = (
+    id: string, name: string, type: Container['type'], parentId: string | null,
+    visibility: Container['visibility'] = 'public',
+  ): Container => ({
+    id, name, type, parentId, position: 0, visibility, archivedAt: null, createdAt: T0, updatedAt: T0,
+  });
+  const containers: Container[] = [
+    container('ws-x', 'Synth Workspace', 'workspace', null),
+    container('sp-x', 'Stranded Space', 'space', 'ws-x', 'private'),
+    container('folder-x', 'Childless Folder', 'folder', 'sp-x'),
+    container('list-x', 'Denied List', 'list', 'folder-x'),
+    container('sp-ok', 'Control Space', 'space', 'ws-x'),
+    container('list-ok', 'Always Visible List', 'list', 'sp-ok'),
+  ];
+  const grants: Grant[] = [
+    { id: 'g-allow-folder', resourceId: 'folder-x', userId: 'u-bob', mode: 'allow' },
+    { id: 'g-deny-list', resourceId: 'list-x', userId: 'u-bob', mode: 'deny' },
+  ];
+
+  renderApp({
+    containers: containersAdapter.setAll(containersAdapter.getInitialState(), containers),
+    grants: grantsAdapter.setAll(grantsAdapter.getInitialState(), grants),
+    session: { currentUserId: 'u-bob', simulateFailures: false },
+  });
+
+  expect(screen.queryByText('Childless Folder')).not.toBeInTheDocument();
+  expect(screen.queryByText('Stranded Space')).not.toBeInTheDocument();
+  // The control branch and the workspace root (which still has real content
+  // via the control branch) are unaffected.
+  expect(screen.getByText('Synth Workspace')).toBeInTheDocument();
+  expect(screen.getByText('Control Space')).toBeInTheDocument();
+  expect(screen.getByText('Always Visible List')).toBeInTheDocument();
 });
