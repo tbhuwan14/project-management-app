@@ -1,4 +1,5 @@
 import Sidebar from './components/sidebar/Sidebar';
+import MainView from './components/shell/MainView';
 import TopBar from './components/shell/TopBar';
 import Toasts from './components/ui/Toasts';
 import { useAppSelector } from './store/hooks';
@@ -29,9 +30,7 @@ export default function App() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex flex-1 items-center justify-center text-slate-400">
-          Select a list from the sidebar
-        </main>
+        <MainView />
       </div>
       <Toasts />
     </div>
