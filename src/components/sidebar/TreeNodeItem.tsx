@@ -88,13 +88,18 @@ export default function TreeNodeItem(props: Props) {
           <button
             disabled={passThrough || !isList}
             onClick={() => isList && dispatch(selectList(container.id))}
-            className={`min-w-0 flex-1 truncate text-left ${isList && !passThrough ? 'cursor-pointer' : 'cursor-default'}`}
+            className={`min-w-0 flex-1 break-words text-left ${isList && !passThrough ? 'cursor-pointer' : 'cursor-default'}`}
           >
             {container.name}
           </button>
         )}
         {container.visibility === 'private' && (
-          <span className="rounded bg-amber-100 px-1 text-[9px] font-semibold uppercase text-amber-700">Private</span>
+          <span
+            role="img"
+            aria-label="Private"
+            title="Private"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+          />
         )}
         {canManage && !passThrough && !renaming && (
           <Menu as="div" className="relative">
