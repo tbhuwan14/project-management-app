@@ -8,10 +8,14 @@ import type { TreeNode } from '../../store/selectors';
  * `nodes` is the sibling group in its current (pre-drag) order. We mirror
  * dnd-kit's own `arrayMove(items, activeIndex, overIndex)` to get the
  * post-drop order, then read the positions of the moved node's new
- * neighbours and hand them to `positionBetween`. This is correct for drags
- * in both directions — unlike naively reusing `overIndex` as the insertion
- * index into the array with the active node removed, which only works when
- * dragging upward.
+ * neighbours and hand them to `positionBetween`. Going through `arrayMove`
+ * means the lookup reads directly as "the elements either side of where the
+ * node landed" — the post-drop order is produced for us, rather than asking
+ * the reader to reason about index shifts in a filtered (active-removed)
+ * array. (Both constructions land on the same neighbours in every case —
+ * removing the active node and reinserting it at `overIndex` is exactly
+ * what `arrayMove` does — so this is a clarity choice, not a correctness
+ * fix.)
  *
  * Returns `null` when the drag is a no-op (dropped on itself, or either id
  * is not found in `nodes`).
