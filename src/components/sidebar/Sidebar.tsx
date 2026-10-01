@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectCanManage, selectVisibleTree } from '../../store/selectors';
+import { selectCanManage, selectVisibleTree, type TreeNode } from '../../store/selectors';
 import { addToast } from '../../store/slices/uiSlice';
 import { archiveContainer, createContainer, renameContainer } from '../../store/thunks/containerThunks';
 import SiblingGroup from './SiblingGroup';
@@ -9,10 +9,36 @@ import { CHILD_TYPE, type NodeEdit } from './treeTypes';
 
 export { CHILD_TYPE, type NodeEdit };
 
+/**
+ * Drops "dead end" branches from the rendered tree: a non-list node (space,
+ * folder, workspace) that is itself viewable but whose only children are
+ * denied to this user ends up with zero visible children — a real node with
+ * nothing underneath and nothing the user can do about it. An admin can
+ * still add structure under it, so we only hide it for users who can't
+ * manage containers. Pass-through ancestors (dimmed, on the path to a
+ * granted descendant) are never touched here — by construction they always
+ * have at least one surviving child, and they must stay visible as
+ * navigation context regardless.
+ *
+ * This only affects what Sidebar renders; selectVisibleTree itself (the
+ * permission-model selector) is untouched.
+ */
+function pruneDeadEnds(nodes: TreeNode[], canManage: boolean): TreeNode[] {
+  const result: TreeNode[] = [];
+  for (const node of nodes) {
+    const children = pruneDeadEnds(node.children, canManage);
+    const isDeadEnd = node.container.type !== 'list' && !node.passThrough && !canManage && children.length === 0;
+    if (isDeadEnd) continue;
+    result.push(children === node.children ? node : { ...node, children });
+  }
+  return result;
+}
+
 export default function Sidebar() {
   const dispatch = useAppDispatch();
-  const tree = useAppSelector(selectVisibleTree);
+  const rawTree = useAppSelector(selectVisibleTree);
   const canManage = useAppSelector(selectCanManage);
+  const tree = pruneDeadEnds(rawTree, canManage);
   const [edit, setEdit] = useState<NodeEdit | null>(null);
 
   const toastIfRejected = (res: { meta: { requestStatus: string }; payload?: unknown }) => {
