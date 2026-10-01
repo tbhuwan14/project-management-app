@@ -6,22 +6,11 @@ import App from './App';
 import { FAKE_LATENCY } from './api/fakeApi';
 import { loadPersisted, subscribePersistence } from './store/persistence';
 import { setCurrentUser } from './store/slices/sessionSlice';
-import { markBooted } from './store/slices/uiSlice';
-import { makeStore, type AppStore, type PreloadedAppState } from './store/store';
+import { makeStore } from './store/store';
+import { renderApp } from './test/renderApp';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
 afterEach(() => { localStorage.clear(); });
-
-export function renderApp(preloaded?: PreloadedAppState): AppStore {
-  const store = makeStore(preloaded);
-  store.dispatch(markBooted());
-  render(
-    <Provider store={store}>
-      <App />
-    </Provider>,
-  );
-  return store;
-}
 
 test('renders shell with current user', () => {
   renderApp();

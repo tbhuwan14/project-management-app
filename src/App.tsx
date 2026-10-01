@@ -1,3 +1,4 @@
+import Sidebar from './components/sidebar/Sidebar';
 import TopBar from './components/shell/TopBar';
 import Toasts from './components/ui/Toasts';
 import { useAppSelector } from './store/hooks';
@@ -24,7 +25,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
       <aside className="w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
-        <span className="text-xs text-slate-400">Sidebar</span>
+        <Sidebar />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
