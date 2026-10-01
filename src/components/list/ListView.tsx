@@ -1,4 +1,4 @@
-import { formatDue, isOverdue } from '../../lib/date';
+import { formatDue, isLate } from '../../lib/date';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectListRows, selectListStatuses } from '../../store/selectors';
 import { openDrawer, setListSort, type ListSort } from '../../store/slices/uiSlice';
@@ -61,8 +61,15 @@ export default function ListView({ listId }: { listId: string }) {
               <tr
                 key={task.id}
                 data-testid={`row-${task.id}`}
+                tabIndex={0}
                 onClick={() => dispatch(openDrawer(task.id))}
-                className="cursor-pointer hover:bg-slate-50"
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    dispatch(openDrawer(task.id));
+                  }
+                }}
+                className="cursor-pointer hover:bg-slate-50 focus:outline-2 focus:-outline-offset-2 focus:outline-brand-500"
               >
                 <td className="border-b border-slate-100 px-3 py-2 text-sm font-medium">{task.title}</td>
                 <td className="border-b border-slate-100 px-3 py-2">
@@ -86,7 +93,7 @@ export default function ListView({ listId }: { listId: string }) {
                   </span>
                 </td>
                 <td className={`border-b border-slate-100 px-3 py-2 text-sm ${
-                  task.dueDate && isOverdue(task.dueDate) ? 'font-semibold text-red-600' : 'text-slate-500'
+                  task.dueDate && isLate(task.dueDate, status?.category ?? 'todo') ? 'font-semibold text-red-600' : 'text-slate-500'
                 }`}>
                   {task.dueDate ? formatDue(task.dueDate) : '—'}
                 </td>

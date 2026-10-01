@@ -1,15 +1,18 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { formatDue, isOverdue } from '../../lib/date';
+import { formatDue, isLate } from '../../lib/date';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectSubtasks } from '../../store/selectors';
 import { openDrawer } from '../../store/slices/uiSlice';
 import { usersSelectors } from '../../store/store';
-import type { Task, User } from '../../types';
+import type { StatusCategory, Task, User } from '../../types';
 import Avatar from '../ui/Avatar';
 import { PRIORITY_BADGE, PRIORITY_LABEL } from '../ui/colors';
 
-export default function TaskCard({ task, overlay = false }: { task: Task; overlay?: boolean }) {
+export default function TaskCard(
+  { task, statusCategory = 'todo', overlay = false }:
+  { task: Task; statusCategory?: StatusCategory; overlay?: boolean },
+) {
   const dispatch = useAppDispatch();
   // Select the stable entity dictionary and map outside the selector — mapping
   // inside useAppSelector would build a brand-new array on every store change,
@@ -33,7 +36,14 @@ export default function TaskCard({ task, overlay = false }: { task: Task; overla
       style={overlay ? undefined : { transform: CSS.Transform.toString(transform), transition }} // dnd-kit exception (README)
       data-testid={`card-${task.id}`}
       onClick={() => !overlay && dispatch(openDrawer(task.id))}
-      className={`cursor-pointer rounded-card border border-slate-200 bg-white p-3 shadow-card transition hover:border-brand-500 ${
+      onKeyDown={(ev) => {
+        if (overlay) return;
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          dispatch(openDrawer(task.id));
+        }
+      }}
+      className={`cursor-pointer rounded-card border border-slate-200 bg-white p-3 shadow-card transition hover:border-brand-500 focus:outline-2 focus:outline-brand-500 focus:outline-offset-2 ${
         isDragging ? 'opacity-40' : ''
       } ${overlay ? 'rotate-2 shadow-lg' : ''}`}
     >
@@ -45,7 +55,7 @@ export default function TaskCard({ task, overlay = false }: { task: Task; overla
           </span>
         )}
         {task.dueDate && (
-          <span className={`text-[11px] ${isOverdue(task.dueDate) ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
+          <span className={`text-[11px] ${isLate(task.dueDate, statusCategory) ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
             {formatDue(task.dueDate)}
           </span>
         )}

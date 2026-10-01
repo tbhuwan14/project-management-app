@@ -38,7 +38,7 @@ export default function BoardColumn({ listId, status, tasks }: { listId: string;
       </header>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-10 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
-          {tasks.map((task) => <TaskCard key={task.id} task={task} />)}
+          {tasks.map((task) => <TaskCard key={task.id} task={task} statusCategory={status.category} />)}
           {tasks.length === 0 && !isOver && (
             <p className="rounded border border-dashed border-slate-300 p-3 text-center text-xs text-slate-400">
               No tasks

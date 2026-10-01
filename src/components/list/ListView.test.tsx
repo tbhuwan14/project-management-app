@@ -90,6 +90,25 @@ test('Due date header sorts chronologically with null due dates last in both dir
   ]);
 });
 
+test('a completed task keeps a past due date but does not render it as overdue', () => {
+  renderApp({ ...uiListMode, ui: { ...uiListMode.ui, selectedListId: 'l-backlog' } });
+  // Pick bundler (t-5, l-backlog) is Done with a due date of 2026-09-15 —
+  // in the past — but finished work must not read as late.
+  const row = screen.getByTestId('row-t-5');
+  const dueCell = within(row).getByText('Sep 15');
+  expect(dueCell).not.toHaveClass('text-red-600', 'font-semibold');
+  expect(dueCell).toHaveClass('text-slate-500');
+});
+
+test('pressing Enter on a focused row opens the drawer (keyboard activation)', async () => {
+  const user = userEvent.setup();
+  const store = renderApp(uiListMode);
+  const row = screen.getByTestId('row-t-6');
+  row.focus();
+  await user.keyboard('{Enter}');
+  expect(store.getState().ui.drawerTaskId).toBe('t-6');
+});
+
 test('an empty list shows an empty state instead of a bare table', () => {
   const tasksWithoutSprint = tasksAdapter.setAll(
     tasksAdapter.getInitialState(),

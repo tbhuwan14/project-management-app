@@ -45,6 +45,17 @@ test('an overdue due date renders red and bold', () => {
   expect(dueLabel).toHaveClass('text-red-600', 'font-semibold');
 });
 
+test('a completed task keeps a past due date but does not render it as overdue', () => {
+  renderApp({ ...uiOnSprint, ui: { ...uiOnSprint.ui, selectedListId: 'l-backlog' } });
+  // Pick bundler (t-5, l-backlog) is in the Done column with a due date of
+  // 2026-09-15 — in the past relative to the real clock these tests run
+  // under — but it is finished, so it must not read as overdue.
+  const card = screen.getByText('Pick bundler').closest('[data-testid^="card-"]')!;
+  const dueLabel = within(card as HTMLElement).getByText('Sep 15');
+  expect(dueLabel).not.toHaveClass('text-red-600', 'font-semibold');
+  expect(dueLabel).toHaveClass('text-slate-500');
+});
+
 test('a none-priority task hides its priority badge', () => {
   renderApp({ ...uiOnSprint, ui: { ...uiOnSprint.ui, selectedListId: 'l-backlog' } });
   // Pick bundler (t-5, l-backlog) has priority "none".
@@ -78,6 +89,15 @@ test('clicking a card opens the drawer state', async () => {
   const user = userEvent.setup();
   const store = renderApp(uiOnSprint);
   await user.click(screen.getByText('Implement login screen'));
+  expect(store.getState().ui.drawerTaskId).toBe('t-6');
+});
+
+test('pressing Enter on a focused card opens the drawer (keyboard activation)', async () => {
+  const user = userEvent.setup();
+  const store = renderApp(uiOnSprint);
+  const card = screen.getByText('Implement login screen').closest('[data-testid^="card-"]')!;
+  (card as HTMLElement).focus();
+  await user.keyboard('{Enter}');
   expect(store.getState().ui.drawerTaskId).toBe('t-6');
 });
 

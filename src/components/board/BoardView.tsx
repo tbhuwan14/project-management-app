@@ -8,6 +8,7 @@ import { useBoardDnd } from './useBoardDnd';
 export default function BoardView({ listId }: { listId: string }) {
   const columns = useAppSelector((s) => selectBoardColumns(s, listId));
   const { sensors, activeTask, onDragStart, onDragCancel, onDragEnd } = useBoardDnd(listId, columns);
+  const activeStatus = activeTask && columns.find((c) => c.status.id === activeTask.statusId)?.status;
   return (
     <DndContext
       sensors={sensors}
@@ -21,7 +22,9 @@ export default function BoardView({ listId }: { listId: string }) {
           <BoardColumn key={status.id} listId={listId} status={status} tasks={tasks} />
         ))}
       </div>
-      <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
+      <DragOverlay>
+        {activeTask && <TaskCard task={activeTask} statusCategory={activeStatus?.category} overlay />}
+      </DragOverlay>
     </DndContext>
   );
 }
