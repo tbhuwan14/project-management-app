@@ -1,7 +1,8 @@
 import { setCurrentUser } from './slices/sessionSlice';
-import { selectList, setListSort } from './slices/uiSlice';
+import { selectList, setListSort, setViewMode } from './slices/uiSlice';
 import {
-  selectAccessibleSelectedListId, selectBoardColumns, selectListRows, selectVisibleTree,
+  selectAccessibleSelectedListId, selectBoardColumns, selectListRows, selectListStatuses,
+  selectSubtasks, selectVisibleLists, selectVisibleTree,
 } from './selectors';
 import { makeStore } from './store';
 
@@ -63,4 +64,56 @@ test('list rows sort by dueDate with nulls last', () => {
   const rows = selectListRows(store.getState(), 'l-sprint');
   expect(rows[0].id).toBe('t-11'); // earliest due 2026-09-25
   expect(rows[rows.length - 1].dueDate).toBeNull();
+});
+
+test('list rows sort by dueDate desc still puts nulls last, not first', () => {
+  const store = makeStore();
+  store.dispatch(setListSort({ key: 'dueDate', dir: 'desc' }));
+  const rows = selectListRows(store.getState(), 'l-sprint');
+  expect(rows[0].dueDate).not.toBeNull();
+  expect(rows[rows.length - 1].dueDate).toBeNull();
+  expect(rows[rows.length - 2].dueDate).toBeNull();
+});
+
+describe('memoized selector referential stability', () => {
+  test('selectListStatuses returns the same reference for repeated calls with identical args', () => {
+    const state = makeStore().getState();
+    expect(selectListStatuses(state, 'l-sprint')).toBe(selectListStatuses(state, 'l-sprint'));
+  });
+
+  test('selectBoardColumns returns the same reference for repeated calls with identical args', () => {
+    const state = makeStore().getState();
+    expect(selectBoardColumns(state, 'l-sprint')).toBe(selectBoardColumns(state, 'l-sprint'));
+  });
+
+  test('selectListRows returns the same reference for repeated calls with identical args', () => {
+    const state = makeStore().getState();
+    expect(selectListRows(state, 'l-sprint')).toBe(selectListRows(state, 'l-sprint'));
+  });
+
+  test('selectSubtasks returns the same reference for repeated calls with identical args', () => {
+    const state = makeStore().getState();
+    expect(selectSubtasks(state, 't-8')).toBe(selectSubtasks(state, 't-8'));
+  });
+
+  test('selectVisibleLists returns the same reference for repeated calls with identical state', () => {
+    const state = makeStore().getState();
+    expect(selectVisibleLists(state)).toBe(selectVisibleLists(state));
+  });
+
+  test('selectBoardColumns reference survives an unrelated ui action', () => {
+    const store = makeStore();
+    const before = selectBoardColumns(store.getState(), 'l-sprint');
+    store.dispatch(setViewMode('list')); // touches ui slice only, not tasks/statuses
+    const after = selectBoardColumns(store.getState(), 'l-sprint');
+    expect(after).toBe(before);
+  });
+
+  test('selectBoardColumns cache does not thrash across different listIds', () => {
+    const state = makeStore().getState();
+    const sprintFirst = selectBoardColumns(state, 'l-sprint');
+    selectBoardColumns(state, 'l-backlog'); // query a different list in between
+    const sprintSecond = selectBoardColumns(state, 'l-sprint');
+    expect(sprintSecond).toBe(sprintFirst);
+  });
 });
