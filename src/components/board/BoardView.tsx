@@ -7,9 +7,15 @@ import { useBoardDnd } from './useBoardDnd';
 
 export default function BoardView({ listId }: { listId: string }) {
   const columns = useAppSelector((s) => selectBoardColumns(s, listId));
-  const { sensors, activeTask, onDragStart, onDragEnd } = useBoardDnd(listId, columns);
+  const { sensors, activeTask, onDragStart, onDragCancel, onDragEnd } = useBoardDnd(listId, columns);
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragCancel={onDragCancel}
+      onDragEnd={onDragEnd}
+    >
       <div role="region" aria-label="Board" className="flex h-full gap-3 overflow-x-auto p-4">
         {columns.map(({ status, tasks }) => (
           <BoardColumn key={status.id} listId={listId} status={status} tasks={tasks} />

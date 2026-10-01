@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom';
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FAKE_LATENCY } from '../../api/fakeApi';
 import { renderApp } from '../../test/renderApp';
+import { createTask } from '../../store/thunks/taskThunks';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
 
@@ -23,11 +24,43 @@ test('renders a column per status with its tasks', () => {
   expect(within(review).getByText('Dark-launch search index')).toBeInTheDocument();
 });
 
-test('cards show priority, assignees, and due date', () => {
+test('a card shows its priority badge, assignee avatar, and a non-overdue due date', () => {
   renderApp(uiOnSprint);
+  // Implement login screen (t-6): urgent, assigned to Bob, due 2026-10-03 —
+  // in the future relative to the real clock these tests run under.
   const card = screen.getByText('Implement login screen').closest('[data-testid^="card-"]')!;
   expect(within(card as HTMLElement).getByText('Urgent')).toBeInTheDocument();
   expect(within(card as HTMLElement).getByTitle('Bob Builder')).toBeInTheDocument();
+  const dueLabel = within(card as HTMLElement).getByText('Oct 3');
+  expect(dueLabel).toHaveClass('text-slate-500');
+  expect(dueLabel).not.toHaveClass('text-red-600');
+});
+
+test('an overdue due date renders red and bold', () => {
+  renderApp(uiOnSprint);
+  // Migrate billing webhooks (t-8, l-sprint) is due 2026-09-29 — in the past
+  // relative to the real clock these tests run under.
+  const card = screen.getByText('Migrate billing webhooks').closest('[data-testid^="card-"]')!;
+  const dueLabel = within(card as HTMLElement).getByText('Sep 29');
+  expect(dueLabel).toHaveClass('text-red-600', 'font-semibold');
+});
+
+test('a none-priority task hides its priority badge', () => {
+  renderApp({ ...uiOnSprint, ui: { ...uiOnSprint.ui, selectedListId: 'l-backlog' } });
+  // Pick bundler (t-5, l-backlog) has priority "none".
+  const card = screen.getByText('Pick bundler').closest('[data-testid^="card-"]')!;
+  for (const label of ['Urgent', 'High', 'Normal', 'Low']) {
+    expect(within(card as HTMLElement).queryByText(label)).not.toBeInTheDocument();
+  }
+});
+
+test('a card with subtasks shows the subtask count', async () => {
+  const store = renderApp(uiOnSprint);
+  await act(async () => {
+    await store.dispatch(createTask({ listId: 'l-sprint', title: 'Subtask', parentTaskId: 't-6' }));
+  });
+  const card = screen.getByText('Implement login screen').closest('[data-testid^="card-"]')!;
+  expect(within(card as HTMLElement).getByText('☑ 1')).toBeInTheDocument();
 });
 
 test('quick-add creates a task in that column', async () => {

@@ -25,6 +25,7 @@ export default function BoardColumn({ listId, status, tasks }: { listId: string;
   return (
     <section
       ref={setNodeRef}
+      aria-label={status.name}
       data-testid={`column-${status.id}`}
       className={`flex w-72 shrink-0 flex-col rounded-card border bg-slate-100/60 ${
         isOver ? 'border-brand-500 bg-brand-50' : 'border-transparent'
