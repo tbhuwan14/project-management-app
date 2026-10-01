@@ -37,6 +37,13 @@ export default function SubtaskList({ parent }: { parent: Task }) {
     }
   };
 
+  const remove = async (sub: Task) => {
+    const res = await dispatch(archiveTask({ id: sub.id }));
+    if (archiveTask.rejected.match(res)) {
+      dispatch(addToast({ message: res.payload?.error.message ?? 'Remove failed', tone: 'error' }));
+    }
+  };
+
   return (
     <div>
       <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -57,7 +64,7 @@ export default function SubtaskList({ parent }: { parent: Task }) {
               <span className={`flex-1 text-sm ${done ? 'text-slate-400 line-through' : ''}`}>{sub.title}</span>
               <button
                 aria-label={`Remove ${sub.title}`}
-                onClick={() => void dispatch(archiveTask({ id: sub.id }))}
+                onClick={() => void remove(sub)}
                 className="invisible text-xs text-slate-400 hover:text-red-600 group-hover:visible"
               >
                 ✕

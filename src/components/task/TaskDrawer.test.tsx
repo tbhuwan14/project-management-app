@@ -5,6 +5,7 @@ import { FAKE_LATENCY } from '../../api/fakeApi';
 import { renderApp } from '../../test/renderApp';
 import { tasksSelectors } from '../../store/store';
 import { createTask } from '../../store/thunks/taskThunks';
+import { setSimulateFailures } from '../../store/slices/sessionSlice';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
 
@@ -68,7 +69,15 @@ test('a failed title commit reverts the field and shows an error toast', async (
   await user.clear(title);
   await user.type(title, 'Will not save');
   await user.tab();
-  expect(await screen.findByRole('alert')).toBeInTheDocument();
+  // A success toast also carries role="alert", so assert the actual error wording (and
+  // error styling) rather than just "some alert appeared" — otherwise this would pass
+  // just as well if the commit had silently succeeded and fired a success toast.
+  // { hidden: true } is required here: Headless UI's Dialog marks everything outside its
+  // own portal (including <Toasts />, mounted as App's sibling) inert while open, which
+  // removes it from the default accessibility-tree role query.
+  const toast = await screen.findByRole('alert', { hidden: true });
+  expect(toast).toHaveTextContent('Simulated network failure');
+  expect(toast).toHaveClass('text-red-800');
   expect(await screen.findByDisplayValue('Implement login screen')).toBeInTheDocument();
   expect(tasksSelectors.selectById(store.getState(), 't-6')?.title).toBe('Implement login screen');
 });
@@ -123,16 +132,19 @@ test('moving to a list the user cannot edit at the source is rejected and toasts
   });
   await screen.findByRole('dialog');
   await user.selectOptions(screen.getByLabelText('Move to list'), 'l-sprint');
-  expect(await screen.findByRole('alert')).toBeInTheDocument();
+  // { hidden: true } — the drawer stays open on a rejected move, so the toast (outside
+  // the Dialog's portal) is inert per Headless UI; see note above.
+  expect(await screen.findByRole('alert', { hidden: true })).toBeInTheDocument();
   expect(tasksSelectors.selectById(store.getState(), 't-17')?.primaryListId).toBe('l-roadmap');
 });
 
 test('adding a subtask shows it in the checklist', async () => {
   renderApp(uiWithDrawer);
   const user = userEvent.setup();
-  await user.click(await screen.findByText('+ Add subtask'));
+  const dialog = await screen.findByRole('dialog');
+  await user.click(within(dialog).getByText('+ Add subtask'));
   await user.keyboard('Write unit tests{Enter}');
-  expect(await screen.findByText('Write unit tests')).toBeInTheDocument();
+  expect(await within(dialog).findByText('Write unit tests')).toBeInTheDocument();
 });
 
 test('a subtask never gains its own "add subtask" affordance (max depth 1)', async () => {
@@ -140,11 +152,14 @@ test('a subtask never gains its own "add subtask" affordance (max depth 1)', asy
   const user = userEvent.setup();
   await user.click(await screen.findByText('+ Add subtask'));
   await user.keyboard('Only child{Enter}');
-  await screen.findByText('Only child');
-  // Exactly one "+ Add subtask" affordance must exist: the parent's. If subtasks could
-  // recursively grow their own checklist, a second one would appear here.
+  const subtaskRow = (await screen.findByText('Only child')).closest('li')!;
+  // Exactly one "+ Add subtask" affordance must exist in the whole drawer: the parent's.
+  // If subtasks could recursively grow their own checklist, a second one would appear.
   expect(screen.getAllByText('+ Add subtask')).toHaveLength(1);
-  expect(store.getState().tasks.entities['t-6']?.parentTaskId).toBeFalsy();
+  // And specifically: the new subtask's own row renders no add-subtask affordance at all.
+  expect(within(subtaskRow as HTMLElement).queryByText('+ Add subtask')).not.toBeInTheDocument();
+  const subtask = Object.values(store.getState().tasks.entities).find((t) => t?.title === 'Only child')!;
+  expect(subtask.parentTaskId).toBe('t-6');
 });
 
 test('toggling a subtask flips it between the done and todo status categories', async () => {
@@ -164,6 +179,31 @@ test('toggling a subtask flips it between the done and todo status categories', 
 
   await user.click(screen.getByLabelText('Toggle Toggle me'));
   await waitFor(() => expect(tasksSelectors.selectById(store.getState(), subtaskId)?.statusId).toBe('l-sprint-todo'));
+});
+
+test('a failed subtask removal toasts an error and leaves the subtask in place', async () => {
+  const user = userEvent.setup();
+  const store = renderApp(uiWithDrawer);
+  // Create the subtask while failures are off, then flip simulateFailures on before
+  // removing it — isolates the failure to the remove action itself.
+  await user.click(await screen.findByText('+ Add subtask'));
+  await user.keyboard('Keep me{Enter}');
+  await screen.findByText('Keep me');
+  const subtaskId = Object.values(store.getState().tasks.entities).find((t) => t?.title === 'Keep me')!.id;
+
+  act(() => {
+    store.dispatch(setSimulateFailures(true));
+  });
+
+  await user.click(screen.getByLabelText('Remove Keep me'));
+
+  // { hidden: true } — the drawer stays open on a rejected archive, so the toast (outside
+  // the Dialog's portal) is inert per Headless UI; see note on the title-commit test above.
+  const toast = await screen.findByRole('alert', { hidden: true });
+  expect(toast).toHaveTextContent('Simulated network failure');
+  expect(toast).toHaveClass('text-red-800');
+  expect(screen.getByText('Keep me')).toBeInTheDocument();
+  expect(tasksSelectors.selectById(store.getState(), subtaskId)?.archivedAt).toBeNull();
 });
 
 test('archiving the task closes the drawer and removes it from the board', async () => {
