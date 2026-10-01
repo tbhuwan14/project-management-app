@@ -65,6 +65,17 @@ describe('canView', () => {
     };
     expect(canView(e, 'admin', 'listA')).toBe(false);
   });
+  test('unknown container id fails closed', () => {
+    expect(canView(entities, 'admin', 'does-not-exist')).toBe(false);
+  });
+  test('archived ancestor hides a live descendant', () => {
+    const e: PermissionEntities = {
+      ...entities,
+      containers: { ...entities.containers, folder: { ...entities.containers.folder!, archivedAt: ts } },
+    };
+    expect(entities.containers.listA!.archivedAt).toBeNull();
+    expect(canView(e, 'admin', 'listA')).toBe(false);
+  });
 });
 
 describe('getVisibleContainers', () => {
@@ -92,5 +103,10 @@ describe('edit rights', () => {
   test('only admin manages containers', () => {
     expect(canManageContainers(entities, 'admin')).toBe(true);
     expect(canManageContainers(entities, 'mem')).toBe(false);
+  });
+  test('admin can edit tasks on any list', () => {
+    expect(canEditTasks(entities, 'admin', 'listA')).toBe(true);
+    expect(canEditTasks(entities, 'admin', 'listB')).toBe(true);
+    expect(canEditTasks(entities, 'admin', 'listP')).toBe(true);
   });
 });
