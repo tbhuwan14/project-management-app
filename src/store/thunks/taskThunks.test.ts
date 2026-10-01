@@ -50,6 +50,11 @@ test('cross-list move remaps status by category and moves subtasks', async () =>
   const store = makeStore();
   const sub = await store.dispatch(createTask({ listId: 'l-sprint', title: 'Sub of t-8', parentTaskId: 't-8' }));
   const subId = (sub.payload as { id: string }).id;
+  // Force the subtask into a non-todo category. A freshly created subtask defaults to
+  // 'todo', which coincides with the destination's fallback default status and would
+  // pass even if remapStatus were replaced wholesale with defaultStatus — this must
+  // exercise real category matching, not the fallback.
+  await store.dispatch(updateTask({ id: subId, changes: { statusId: 'l-sprint-prog' } }));
   // t-8 is in_progress in Sprint; move it to Backlog's in-progress column
   const res = await store.dispatch(moveTask({ id: 't-8', toListId: 'l-backlog', statusId: 'l-backlog-prog', position: 50 }));
   expect(moveTask.fulfilled.match(res)).toBe(true);
@@ -57,7 +62,16 @@ test('cross-list move remaps status by category and moves subtasks', async () =>
   expect(tasksSelectors.selectById(state, 't-8')?.primaryListId).toBe('l-backlog');
   const movedSub = tasksSelectors.selectById(state, subId);
   expect(movedSub?.primaryListId).toBe('l-backlog');
-  expect(movedSub?.statusId).toBe('l-backlog-todo'); // subtask was todo in Sprint → todo in Backlog
+  expect(movedSub?.statusId).toBe('l-backlog-prog'); // subtask was in_progress in Sprint → in_progress in Backlog
+});
+
+test('moveTask rejects moving a subtask away from its parent’s list', async () => {
+  const store = makeStore();
+  const sub = await store.dispatch(createTask({ listId: 'l-sprint', title: 'Sub', parentTaskId: 't-6' }));
+  const subId = (sub.payload as { id: string }).id;
+  const res = await store.dispatch(moveTask({ id: subId, toListId: 'l-backlog', statusId: 'l-backlog-todo', position: 50 }));
+  expect((res.payload as { error: { code: string } }).error.code).toBe('VALIDATION');
+  expect(tasksSelectors.selectById(store.getState(), subId)?.primaryListId).toBe('l-sprint');
 });
 
 test('move requires edit rights on the target list too', async () => {
@@ -75,4 +89,17 @@ test('archiveTask cascades to subtasks', async () => {
   const state = store.getState();
   expect(tasksSelectors.selectById(state, 't-6')?.archivedAt).not.toBeNull();
   expect(tasksSelectors.selectById(state, subId)?.archivedAt).not.toBeNull();
+});
+
+test('archiveTask on an already-archived task is NOT_FOUND and does not rewrite timestamps', async () => {
+  const store = makeStore();
+  const sub = await store.dispatch(createTask({ listId: 'l-sprint', title: 'Sub', parentTaskId: 't-6' }));
+  const subId = (sub.payload as { id: string }).id;
+  await store.dispatch(archiveTask({ id: 't-6' }));
+  const archivedAt = tasksSelectors.selectById(store.getState(), 't-6')!.archivedAt;
+  const subArchivedAt = tasksSelectors.selectById(store.getState(), subId)!.archivedAt;
+  const res = await store.dispatch(archiveTask({ id: 't-6' }));
+  expect((res.payload as { error: { code: string } }).error.code).toBe('NOT_FOUND');
+  expect(tasksSelectors.selectById(store.getState(), 't-6')!.archivedAt).toBe(archivedAt);
+  expect(tasksSelectors.selectById(store.getState(), subId)!.archivedAt).toBe(subArchivedAt);
 });

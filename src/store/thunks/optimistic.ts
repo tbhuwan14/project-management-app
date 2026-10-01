@@ -25,7 +25,7 @@ export async function moveTaskWithRollback(
     id: args.id,
     changes: { primaryListId: args.toListId, statusId: args.statusId, position: args.position },
   }));
-  const result = await dispatch(moveTask(args));
+  const result = await dispatch(moveTask({ ...args, fromListId: snapshot.primaryListId }));
   if (moveTask.rejected.match(result)) {
     dispatch(taskUpserted(snapshot));
     const error = result.payload ?? { error: { code: 'NETWORK' as const, message: 'Move failed' } };

@@ -34,11 +34,6 @@ export const createTask = createAsyncThunk<
   await delay();
   const state = getState();
   if (state.session.simulateFailures) return rejectWithValue(networkFailure());
-  const invalidTitle = validateTaskTitle(input.title);
-  if (invalidTitle) return rejectWithValue(invalidTitle);
-  if (!canEditTasks(permissionEntities(state), state.session.currentUserId, input.listId)) {
-    return rejectWithValue(appError('FORBIDDEN', 'You do not have access to this list'));
-  }
   let parent: Task | undefined;
   if (input.parentTaskId) {
     parent = tasksSelectors.selectById(state, input.parentTaskId);
@@ -48,6 +43,8 @@ export const createTask = createAsyncThunk<
       return rejectWithValue(appError('VALIDATION', 'Subtasks must live in their parent task’s list'));
     }
   }
+  const invalidTitle = validateTaskTitle(input.title);
+  if (invalidTitle) return rejectWithValue(invalidTitle);
   let status: Status | undefined;
   if (input.statusId) {
     status = statusesSelectors.selectById(state, input.statusId);
@@ -57,6 +54,11 @@ export const createTask = createAsyncThunk<
     status = defaultStatus(state, input.listId);
   }
   if (!status) return rejectWithValue(appError('VALIDATION', 'List has no statuses'));
+  // Permission is the last gate before the write — consistent with containerThunks
+  // (NOT_FOUND → VALIDATION → FORBIDDEN) and with updateTask/moveTask below.
+  if (!canEditTasks(permissionEntities(state), state.session.currentUserId, input.listId)) {
+    return rejectWithValue(appError('FORBIDDEN', 'You do not have access to this list'));
+  }
   const siblings = tasksSelectors
     .selectAll(state)
     .filter((t) => t.primaryListId === input.listId && t.statusId === status.id && t.archivedAt === null);
@@ -89,9 +91,6 @@ export const updateTask = createAsyncThunk<
   if (state.session.simulateFailures) return rejectWithValue(networkFailure());
   const task = tasksSelectors.selectById(state, id);
   if (!task || task.archivedAt !== null) return rejectWithValue(appError('NOT_FOUND', 'Task not found'));
-  if (!canEditTasks(permissionEntities(state), state.session.currentUserId, task.primaryListId)) {
-    return rejectWithValue(appError('FORBIDDEN', 'You do not have access to this task'));
-  }
   if (changes.title !== undefined) {
     const invalid = validateTaskTitle(changes.title);
     if (invalid) return rejectWithValue(invalid);
@@ -100,6 +99,9 @@ export const updateTask = createAsyncThunk<
     const status = statusesSelectors.selectById(state, changes.statusId);
     const invalid = validateStatusInList(status, task.primaryListId);
     if (invalid) return rejectWithValue(invalid);
+  }
+  if (!canEditTasks(permissionEntities(state), state.session.currentUserId, task.primaryListId)) {
+    return rejectWithValue(appError('FORBIDDEN', 'You do not have access to this task'));
   }
   const patch = { ...changes, ...(changes.title !== undefined ? { title: changes.title.trim() } : {}), updatedAt: now() };
   dispatch(taskPatched({ id, changes: patch }));
@@ -113,14 +115,14 @@ export const archiveTask = createAsyncThunk<{ id: string }, { id: string }, Thun
     const state = getState();
     if (state.session.simulateFailures) return rejectWithValue(networkFailure());
     const task = tasksSelectors.selectById(state, id);
-    if (!task) return rejectWithValue(appError('NOT_FOUND', 'Task not found'));
+    if (!task || task.archivedAt !== null) return rejectWithValue(appError('NOT_FOUND', 'Task not found'));
     if (!canEditTasks(permissionEntities(state), state.session.currentUserId, task.primaryListId)) {
       return rejectWithValue(appError('FORBIDDEN', 'You do not have access to this task'));
     }
     const at = now();
     const subtaskIds = tasksSelectors
       .selectAll(state)
-      .filter((t) => t.parentTaskId === id)
+      .filter((t) => t.parentTaskId === id && t.archivedAt === null)
       .map((t) => t.id);
     dispatch(tasksPatched([id, ...subtaskIds].map((tid) => ({ id: tid, changes: { archivedAt: at, updatedAt: at } }))));
     if (state.ui.drawerTaskId === id) dispatch(closeDrawer());
@@ -130,28 +132,57 @@ export const archiveTask = createAsyncThunk<{ id: string }, { id: string }, Thun
 
 export const moveTask = createAsyncThunk<
   Task,
-  { id: string; toListId: string; statusId: string; position: number },
+  {
+    id: string;
+    toListId: string;
+    statusId: string;
+    position: number;
+    /**
+     * The task's list *before* this move, as the caller observed it when it decided to
+     * move the task. Optimistic callers (moveTaskWithRollback) write the new list/status
+     * into the store synchronously, before this thunk's body ever runs — so by the time
+     * `getState()` is called below, `task.primaryListId` already equals `toListId`. Without
+     * this explicit pre-patch snapshot, the cross-list cascade (`toListId !== sourceListId`)
+     * and the source-list permission check both silently become no-ops on the only path the
+     * app actually uses (drag-and-drop). Do not delete this as "redundant" with
+     * `task.primaryListId` — they only coincide when the thunk is dispatched directly
+     * (e.g. in tests), not through the optimistic wrapper.
+     */
+    fromListId?: string;
+  },
   ThunkCfg
->('tasks/move', async ({ id, toListId, statusId, position }, { getState, dispatch, rejectWithValue }) => {
+>('tasks/move', async ({ id, toListId, statusId, position, fromListId }, { getState, dispatch, rejectWithValue }) => {
   await delay();
   const state = getState();
   if (state.session.simulateFailures) return rejectWithValue(networkFailure());
   const task = tasksSelectors.selectById(state, id);
   if (!task || task.archivedAt !== null) return rejectWithValue(appError('NOT_FOUND', 'Task not found'));
+
+  const sourceListId = fromListId ?? task.primaryListId;
+
+  if (task.parentTaskId !== null) {
+    const parent = tasksSelectors.selectById(state, task.parentTaskId);
+    const parentListId = parent?.primaryListId ?? sourceListId;
+    if (toListId !== parentListId) {
+      return rejectWithValue(appError('VALIDATION', 'A subtask must live in its parent task’s list'));
+    }
+  }
+
+  const status = statusesSelectors.selectById(state, statusId);
+  const invalidStatus = validateStatusInList(status, toListId);
+  if (invalidStatus) return rejectWithValue(invalidStatus);
+
   const e = permissionEntities(state);
   const userId = state.session.currentUserId;
-  if (!canEditTasks(e, userId, task.primaryListId) || !canEditTasks(e, userId, toListId)) {
+  if (!canEditTasks(e, userId, sourceListId) || !canEditTasks(e, userId, toListId)) {
     return rejectWithValue(appError('FORBIDDEN', 'You do not have access to one of these lists'));
   }
-  const status = statusesSelectors.selectById(state, statusId);
-  const invalid = validateStatusInList(status, toListId);
-  if (invalid) return rejectWithValue(invalid);
 
   const at = now();
   const patches: Array<{ id: string; changes: Partial<Task> }> = [
     { id, changes: { primaryListId: toListId, statusId, position, updatedAt: at } },
   ];
-  if (toListId !== task.primaryListId) {
+  if (toListId !== sourceListId) {
     for (const sub of tasksSelectors.selectAll(state).filter((t) => t.parentTaskId === id)) {
       const mapped = remapStatus(state, sub.statusId, toListId);
       patches.push({ id: sub.id, changes: { primaryListId: toListId, statusId: mapped?.id ?? statusId, updatedAt: at } });
