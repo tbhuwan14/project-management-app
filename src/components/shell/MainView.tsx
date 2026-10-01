@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectAccessibleSelectedListId } from '../../store/selectors';
 import { setViewMode } from '../../store/slices/uiSlice';
@@ -10,6 +11,22 @@ export default function MainView() {
   const listId = useAppSelector(selectAccessibleSelectedListId);
   const list = useAppSelector((s) => (listId ? containersSelectors.selectById(s, listId) : undefined));
   const viewMode = useAppSelector((s) => s.ui.viewMode);
+
+  // Brief skeleton on an actual list switch only — not on the first render
+  // that already has a list selected (e.g. a persisted selection restored at
+  // boot, which the boot skeleton already covers).
+  const [loadingList, setLoadingList] = useState(false);
+  const prevListId = useRef(listId);
+  useEffect(() => {
+    if (listId && listId !== prevListId.current) {
+      prevListId.current = listId;
+      setLoadingList(true);
+      const timer = setTimeout(() => setLoadingList(false), 300);
+      return () => clearTimeout(timer);
+    }
+    prevListId.current = listId;
+    return undefined;
+  }, [listId]);
 
   if (!listId || !list) {
     return (
@@ -37,7 +54,15 @@ export default function MainView() {
         <h2 className="text-base font-semibold">{list.name}</h2>
         <div className="flex gap-1">{tab('board', 'Board')}{tab('list', 'List')}</div>
       </div>
-      {viewMode === 'board' ? <BoardView listId={listId} /> : <ListView listId={listId} />}
+      {loadingList ? (
+        <div className="flex animate-pulse gap-3 p-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-64 w-72 rounded-card bg-slate-200" />)}
+        </div>
+      ) : viewMode === 'board' ? (
+        <BoardView listId={listId} />
+      ) : (
+        <ListView listId={listId} />
+      )}
     </main>
   );
 }
