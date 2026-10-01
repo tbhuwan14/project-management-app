@@ -23,12 +23,19 @@ test('seed grant story: Bob denied Marketing, Carol allowed private roadmap', ()
   expect(canView(e, 'u-carol', 'l-sprint')).toBe(false);
 });
 
-test('persistence round-trips session state', async () => {
-  localStorage.clear();
-  const store = makeStore();
-  subscribePersistence(store);
-  store.dispatch(setCurrentUser('u-carol'));
-  await new Promise((r) => setTimeout(r, 400));
-  const persisted = loadPersisted();
-  expect(persisted?.session?.currentUserId).toBe('u-carol');
+test('persistence round-trips session state', () => {
+  jest.useFakeTimers();
+  try {
+    localStorage.clear();
+    const store = makeStore();
+    subscribePersistence(store);
+    store.dispatch(setCurrentUser('u-carol'));
+    // Deterministically fire the debounced save, whatever its interval is.
+    jest.runAllTimers();
+    const persisted = loadPersisted();
+    expect(persisted?.session?.currentUserId).toBe('u-carol');
+  } finally {
+    jest.useRealTimers();
+    localStorage.clear();
+  }
 });
