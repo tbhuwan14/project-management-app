@@ -1,5 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
-import { canEditTasks, canManageContainers, canView, getVisibleContainers } from '../lib/permissions';
+import { canManageContainers, canView, getVisibleContainers } from '../lib/permissions';
 import type { Container, Priority, Status, Task, User } from '../types';
 import {
   containersSelectors, grantsSelectors, permissionEntities, statusesSelectors, tasksSelectors,
@@ -85,9 +85,6 @@ export const selectSubtasks = createSelector(
 
 export const selectCanManage = (state: RootState): boolean =>
   canManageContainers(permissionEntities(state), state.session.currentUserId);
-
-export const selectCanEditList = (state: RootState, listId: string): boolean =>
-  canEditTasks(permissionEntities(state), state.session.currentUserId, listId);
 
 export const selectVisibleLists = createSelector(
   [

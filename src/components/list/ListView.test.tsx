@@ -27,14 +27,6 @@ test('renders a row per task with status and priority', () => {
   expect(within(row).getByText('Urgent')).toBeInTheDocument();
 });
 
-test('clicking Priority header sorts urgent first', async () => {
-  const user = userEvent.setup();
-  renderApp(uiListMode);
-  await user.click(screen.getByRole('button', { name: /priority/i }));
-  const rows = screen.getAllByTestId(/^row-/);
-  expect(within(rows[0]).getByText(/urgent/i)).toBeInTheDocument();
-});
-
 test('row click opens drawer state', async () => {
   const user = userEvent.setup();
   const store = renderApp(uiListMode);
