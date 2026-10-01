@@ -15,16 +15,19 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: ListSort['key'
     if (sort!.dir === 'asc') return { key: sortKey, dir: 'desc' };
     return null;
   };
+  const ariaSort: 'ascending' | 'descending' | 'none' = !active ? 'none' : sort!.dir === 'asc' ? 'ascending' : 'descending';
   return (
-    <button
-      onClick={() => dispatch(setListSort(next()))}
-      className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide ${
-        active ? 'text-brand-600' : 'text-slate-500 hover:text-slate-700'
-      }`}
-    >
-      {label}
-      {active && <span>{sort!.dir === 'asc' ? '↑' : '↓'}</span>}
-    </button>
+    <th aria-sort={ariaSort} className="border-b border-slate-200 px-3 py-2">
+      <button
+        onClick={() => dispatch(setListSort(next()))}
+        className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide ${
+          active ? 'text-brand-600' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        {label}
+        {active && <span>{sort!.dir === 'asc' ? '↑' : '↓'}</span>}
+      </button>
+    </th>
   );
 }
 
@@ -47,8 +50,8 @@ export default function ListView({ listId }: { listId: string }) {
             <th className="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Title</th>
             <th className="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
             <th className="border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Assignees</th>
-            <th className="border-b border-slate-200 px-3 py-2"><SortHeader label="Priority" sortKey="priority" /></th>
-            <th className="border-b border-slate-200 px-3 py-2"><SortHeader label="Due date" sortKey="dueDate" /></th>
+            <SortHeader label="Priority" sortKey="priority" />
+            <SortHeader label="Due date" sortKey="dueDate" />
           </tr>
         </thead>
         <tbody>

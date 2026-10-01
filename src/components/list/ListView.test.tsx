@@ -22,6 +22,9 @@ test('renders a row per task with status and priority', () => {
   const table = screen.getByRole('table');
   expect(within(table).getByText('Implement login screen')).toBeInTheDocument();
   expect(within(table).getAllByText('In Progress').length).toBeGreaterThanOrEqual(1);
+  // Implement login screen (t-6) is seeded with priority "urgent".
+  const row = screen.getByTestId('row-t-6');
+  expect(within(row).getByText('Urgent')).toBeInTheDocument();
 });
 
 test('clicking Priority header sorts urgent first', async () => {
