@@ -8,7 +8,7 @@ import { useAppSelector } from './store/hooks';
 function BootSkeleton() {
   return (
     <div className="flex h-screen animate-pulse">
-      <div className="w-64 border-r border-slate-200 bg-slate-50 p-4">
+      <div className="w-72 border-r border-slate-200 bg-slate-50 p-4">
         {[...Array(6)].map((_, i) => <div key={i} className="mb-3 h-4 rounded bg-slate-200" />)}
       </div>
       <div className="flex-1 p-6">
@@ -26,8 +26,13 @@ export default function App() {
   if (!booted) return <BootSkeleton />;
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
-      <aside className="w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
-        <Sidebar />
+      <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <div className="flex h-14 shrink-0 items-center border-b border-slate-200 px-4">
+          <span className="text-lg font-bold text-brand-600">Flowboard</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <Sidebar />
+        </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
