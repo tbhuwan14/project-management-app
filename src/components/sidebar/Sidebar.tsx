@@ -1,21 +1,12 @@
 import { useState } from 'react';
-import type { ContainerType } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectCanManage, selectVisibleTree } from '../../store/selectors';
 import { addToast } from '../../store/slices/uiSlice';
 import { archiveContainer, createContainer, renameContainer } from '../../store/thunks/containerThunks';
 import TreeNodeItem from './TreeNodeItem';
+import { CHILD_TYPE, type NodeEdit } from './treeTypes';
 
-export const CHILD_TYPE: Record<ContainerType, ContainerType | null> = {
-  workspace: 'space',
-  space: 'folder',
-  folder: 'list',
-  list: null,
-};
-
-export type NodeEdit =
-  | { kind: 'rename'; nodeId: string }
-  | { kind: 'add'; nodeId: string; childType: ContainerType };
+export { CHILD_TYPE, type NodeEdit };
 
 export default function Sidebar() {
   const dispatch = useAppDispatch();

@@ -21,7 +21,7 @@ const container = (
 export const seedContainers: Container[] = [
   container('ws-1', 'Acme Inc', 'workspace', null, 0),
   container('sp-eng', 'Engineering', 'space', 'ws-1', 0),
-  container('sp-mkt', 'Marketing', 'space', 'ws-1', 1),
+  container('sp-mkt', 'Marketing', 'space', 'ws-1', 1, 'private'),
   container('f-q4', 'Q4 Launch', 'folder', 'sp-eng', 0),
   container('f-web', 'Website Revamp', 'folder', 'sp-mkt', 0),
   container('l-backlog', 'Backlog', 'list', 'f-q4', 0),

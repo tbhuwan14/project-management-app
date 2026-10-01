@@ -4,7 +4,7 @@ import type { ContainerType } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { TreeNode } from '../../store/selectors';
 import { selectList } from '../../store/slices/uiSlice';
-import { CHILD_TYPE, type NodeEdit } from './Sidebar';
+import { CHILD_TYPE, type NodeEdit } from './treeTypes';
 
 const TYPE_ICON: Record<ContainerType, string> = { workspace: '◆', space: '▣', folder: '▸', list: '≡' };
 
