@@ -3,6 +3,7 @@ import { selectAccessibleSelectedListId } from '../../store/selectors';
 import { setViewMode } from '../../store/slices/uiSlice';
 import { containersSelectors } from '../../store/store';
 import BoardView from '../board/BoardView';
+import ListView from '../list/ListView';
 
 export default function MainView() {
   const dispatch = useAppDispatch();
@@ -36,7 +37,7 @@ export default function MainView() {
         <h2 className="text-base font-semibold">{list.name}</h2>
         <div className="flex gap-1">{tab('board', 'Board')}{tab('list', 'List')}</div>
       </div>
-      {viewMode === 'board' ? <BoardView listId={listId} /> : <div className="p-4 text-slate-400">List view</div>}
+      {viewMode === 'board' ? <BoardView listId={listId} /> : <ListView listId={listId} />}
     </main>
   );
 }
