@@ -13,8 +13,10 @@ export default function MainView() {
   const viewMode = useAppSelector((s) => s.ui.viewMode);
 
   // Brief skeleton on an actual list switch only — not on the first render
-  // that already has a list selected (e.g. a persisted selection restored at
-  // boot, which the boot skeleton already covers).
+  // that already has a list selected, which is covered by the full-page
+  // boot skeleton the app shows before `ui.booted` flips true. Note:
+  // `selectedListId` is session-local UI state, not persisted — it resets
+  // to null on every reload and is never restored at boot.
   const [loadingList, setLoadingList] = useState(false);
   const prevListId = useRef(listId);
   useEffect(() => {

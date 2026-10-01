@@ -1,6 +1,6 @@
 # AI Usage Log
 
-**Tools:** Claude Code, used through a structured process rather than ad hoc prompting: a written design spec, then a task-by-task implementation plan, then one implementation agent per task. Every task's diff was then read by a second, independent review agent that saw only the diff (not the implementation agent's reasoning), and fix rounds continued until that review came back clean. 33 commits on `feat/flowboard`, one per feature or fix, 142 tests across 18 suites.
+**Tools:** Claude Code, used through a structured process rather than ad hoc prompting: a written design spec, then a task-by-task implementation plan, then one implementation agent per task. Every task's diff was then read by a second, independent review agent that saw only the diff (not the implementation agent's reasoning), and fix rounds continued until that review came back clean. 35 commits on `feat/flowboard` (33 feature/fix, 2 setup), 141 tests across 18 suites.
 
 This log is about where that process actually caught things, not a generic "AI accelerated development" summary.
 
