@@ -1,4 +1,4 @@
-import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { combineReducers, configureStore, createAction } from '@reduxjs/toolkit';
 import type { PermissionEntities } from '../lib/permissions';
 import containersReducer, { containersAdapter } from './slices/containersSlice';
 import grantsReducer, { grantsAdapter } from './slices/grantsSlice';
@@ -32,9 +32,19 @@ export function seedState(): PreloadedAppState {
   };
 }
 
+export const appReset = createAction('app/reset');
+
+const appReducer: typeof rootReducer = (state, action) => {
+  if (appReset.match(action)) {
+    const fresh = rootReducer(undefined, action);
+    return { ...fresh, ...seedState(), ui: { ...fresh.ui, booted: true } } as ReturnType<typeof rootReducer>;
+  }
+  return rootReducer(state, action);
+};
+
 export function makeStore(preloaded?: PreloadedAppState) {
   return configureStore({
-    reducer: rootReducer,
+    reducer: appReducer,
     preloadedState: preloaded ?? seedState(),
   });
 }
