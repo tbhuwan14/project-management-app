@@ -4,10 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import App from './App';
 import { FAKE_LATENCY } from './api/fakeApi';
+import { loadPersisted, subscribePersistence } from './store/persistence';
+import { setCurrentUser } from './store/slices/sessionSlice';
 import { markBooted } from './store/slices/uiSlice';
 import { makeStore, type AppStore, type PreloadedAppState } from './store/store';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
+afterEach(() => { localStorage.clear(); });
 
 export function renderApp(preloaded?: PreloadedAppState): AppStore {
   const store = makeStore(preloaded);
@@ -39,4 +42,40 @@ test('failure toggle flips session flag', async () => {
   const store = renderApp();
   await user.click(screen.getByRole('switch'));
   expect(store.getState().session.simulateFailures).toBe(true);
+});
+
+test('shows the boot skeleton before markBooted fires', () => {
+  const store = makeStore();
+  expect(store.getState().ui.booted).toBe(false);
+  const { container } = render(
+    <Provider store={store}>
+      <App />
+    </Provider>,
+  );
+  // The skeleton has no app chrome at all — assert its distinguishing
+  // "animate-pulse" wrapper is present and the real shell is not.
+  expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+  expect(screen.queryByText('Flowboard')).not.toBeInTheDocument();
+  expect(screen.queryByText('Select a list from the sidebar')).not.toBeInTheDocument();
+});
+
+test('reset button clears persisted storage so a reload cannot resurrect old state', async () => {
+  // Seed localStorage the same way the real app does: a store with
+  // persistence wired up, dispatch a change, flush the debounced save.
+  jest.useFakeTimers();
+  try {
+    const seedStore = makeStore();
+    subscribePersistence(seedStore);
+    seedStore.dispatch(setCurrentUser('u-carol'));
+    jest.runAllTimers();
+  } finally {
+    jest.useRealTimers();
+  }
+  expect(loadPersisted()?.session?.currentUserId).toBe('u-carol');
+
+  const user = userEvent.setup();
+  renderApp();
+  await user.click(screen.getByRole('button', { name: 'Reset demo data' }));
+
+  expect(loadPersisted()).toBeUndefined();
 });
