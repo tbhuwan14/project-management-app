@@ -72,12 +72,26 @@ test('a failed title commit reverts the field and shows an error toast', async (
   // A success toast also carries role="alert", so assert the actual error wording (and
   // error styling) rather than just "some alert appeared" — otherwise this would pass
   // just as well if the commit had silently succeeded and fired a success toast.
-  // { hidden: true } is required here: Headless UI's Dialog marks everything outside its
-  // own portal (including <Toasts />, mounted as App's sibling) inert while open, which
-  // removes it from the default accessibility-tree role query.
-  const toast = await screen.findByRole('alert', { hidden: true });
+  // Deliberately NO { hidden: true }: the toast must be in the accessibility tree while
+  // the drawer is open. Headless UI's Dialog inerts the body child holding the React root,
+  // so this only passes because <Toasts /> portals into its own body child.
+  const toast = await screen.findByRole('alert');
   expect(toast).toHaveTextContent('Simulated network failure');
   expect(toast).toHaveClass('text-red-800');
+  // jsdom honours `aria-hidden` for role queries but does not implement `inert` at all
+  // (it stores Headless UI's `el.inert = true` as a plain expando), so assert the
+  // structural fact directly: with the Dialog open, no ancestor of the toast is inert or
+  // aria-hidden. Before the portal fix the React root carried both.
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  for (let el = toast.parentElement; el !== null; el = el.parentElement) {
+    expect(el.inert).toBeFalsy();
+    expect(el).not.toHaveAttribute('aria-hidden', 'true');
+  }
+  // Reachability, not just presence: the Dismiss button must actually be clickable with
+  // the dialog open, and clicking it must not take the drawer down with it.
+  await user.click(within(toast).getByRole('button', { name: 'Dismiss' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(await screen.findByDisplayValue('Implement login screen')).toBeInTheDocument();
   expect(tasksSelectors.selectById(store.getState(), 't-6')?.title).toBe('Implement login screen');
 });
@@ -132,9 +146,14 @@ test('moving to a list the user cannot edit at the source is rejected and toasts
   });
   await screen.findByRole('dialog');
   await user.selectOptions(screen.getByLabelText('Move to list'), 'l-sprint');
-  // { hidden: true } — the drawer stays open on a rejected move, so the toast (outside
-  // the Dialog's portal) is inert per Headless UI; see note above.
-  expect(await screen.findByRole('alert', { hidden: true })).toBeInTheDocument();
+  // No { hidden: true }: the drawer stays open on a rejected move, and the permission
+  // error has to stay reachable — announced and dismissable — while it does.
+  const toast = await screen.findByRole('alert');
+  expect(toast).toHaveTextContent('You do not have access to one of these lists');
+  expect(toast).toHaveClass('text-red-800');
+  await user.click(within(toast).getByRole('button', { name: 'Dismiss' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(tasksSelectors.selectById(store.getState(), 't-17')?.primaryListId).toBe('l-roadmap');
 });
 
@@ -197,11 +216,14 @@ test('a failed subtask removal toasts an error and leaves the subtask in place',
 
   await user.click(screen.getByLabelText('Remove Keep me'));
 
-  // { hidden: true } — the drawer stays open on a rejected archive, so the toast (outside
-  // the Dialog's portal) is inert per Headless UI; see note on the title-commit test above.
-  const toast = await screen.findByRole('alert', { hidden: true });
+  // No { hidden: true }: the drawer stays open on a rejected archive, so the toast has to
+  // stay reachable — see the note on the title-commit test above.
+  const toast = await screen.findByRole('alert');
   expect(toast).toHaveTextContent('Simulated network failure');
   expect(toast).toHaveClass('text-red-800');
+  await user.click(within(toast).getByRole('button', { name: 'Dismiss' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(screen.getByText('Keep me')).toBeInTheDocument();
   expect(tasksSelectors.selectById(store.getState(), subtaskId)?.archivedAt).toBeNull();
 });
