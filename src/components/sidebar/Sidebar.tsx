@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectCanManage, selectVisibleTree } from '../../store/selectors';
 import { addToast } from '../../store/slices/uiSlice';
 import { archiveContainer, createContainer, renameContainer } from '../../store/thunks/containerThunks';
+import SiblingGroup from './SiblingGroup';
 import TreeNodeItem from './TreeNodeItem';
 import { CHILD_TYPE, type NodeEdit } from './treeTypes';
 
@@ -39,20 +40,26 @@ export default function Sidebar() {
 
   return (
     <nav aria-label="Workspace tree" className="flex h-full flex-col gap-1 p-2">
-      {tree.map((node) => (
-        <TreeNodeItem
-          key={node.container.id}
-          node={node}
-          depth={0}
-          canManage={canManage}
-          edit={edit}
-          onStartEdit={setEdit}
-          onCommitEdit={commitEdit}
-          onCancelEdit={() => setEdit(null)}
-          onArchive={archive}
+      {tree.length > 0 ? (
+        <SiblingGroup
+          nodes={tree}
+          renderNode={(node) => (
+            <TreeNodeItem
+              key={node.container.id}
+              node={node}
+              depth={0}
+              canManage={canManage}
+              edit={edit}
+              onStartEdit={setEdit}
+              onCommitEdit={commitEdit}
+              onCancelEdit={() => setEdit(null)}
+              onArchive={archive}
+            />
+          )}
         />
-      ))}
-      {tree.length === 0 && <p className="p-2 text-sm text-slate-400">Nothing visible for this user</p>}
+      ) : (
+        <p className="p-2 text-sm text-slate-400">Nothing visible for this user</p>
+      )}
     </nav>
   );
 }

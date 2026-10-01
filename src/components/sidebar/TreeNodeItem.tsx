@@ -1,9 +1,12 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import type { ContainerType } from '../../types';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { TreeNode } from '../../store/selectors';
 import { selectList } from '../../store/slices/uiSlice';
+import SiblingGroup from './SiblingGroup';
 import { CHILD_TYPE, type NodeEdit } from './treeTypes';
 
 const TYPE_ICON: Record<ContainerType, string> = { workspace: '◆', space: '▣', folder: '▸', list: '≡' };
@@ -37,6 +40,10 @@ export default function TreeNodeItem(props: Props) {
   const childType = CHILD_TYPE[container.type];
   const renaming = edit?.kind === 'rename' && edit.nodeId === container.id;
   const adding = edit?.kind === 'add' && edit.nodeId === container.id;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: container.id,
+    disabled: !canManage || passThrough,
+  });
 
   const editInput = (defaultValue: string) => (
     <input
@@ -55,9 +62,13 @@ export default function TreeNodeItem(props: Props) {
   return (
     <div>
       <div
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
         className={`group flex items-center gap-1.5 rounded px-1.5 py-1 text-sm ${indentClass(depth)} ${
           selected ? 'bg-brand-50 font-medium text-brand-700' : 'hover:bg-slate-100'
-        } ${passThrough ? 'opacity-50' : ''}`}
+        } ${passThrough ? 'opacity-50' : ''} ${isDragging ? 'opacity-40' : ''}`}
       >
         {children.length > 0 ? (
           <button
@@ -127,9 +138,14 @@ export default function TreeNodeItem(props: Props) {
         )}
       </div>
       {adding && <div className={`${indentClass(depth + 1)} py-1 pr-2`}>{editInput('')}</div>}
-      {expanded && children.map((child) => (
-        <TreeNodeItem key={child.container.id} {...props} node={child} depth={depth + 1} />
-      ))}
+      {expanded && children.length > 0 && (
+        <SiblingGroup
+          nodes={children}
+          renderNode={(child) => (
+            <TreeNodeItem key={child.container.id} {...props} node={child} depth={depth + 1} />
+          )}
+        />
+      )}
     </div>
   );
 }
