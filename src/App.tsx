@@ -1,6 +1,7 @@
 import Sidebar from './components/sidebar/Sidebar';
 import MainView from './components/shell/MainView';
 import TopBar from './components/shell/TopBar';
+import TaskDrawer from './components/task/TaskDrawer';
 import Toasts from './components/ui/Toasts';
 import { useAppSelector } from './store/hooks';
 
@@ -32,6 +33,7 @@ export default function App() {
         <TopBar />
         <MainView />
       </div>
+      <TaskDrawer />
       <Toasts />
     </div>
   );
