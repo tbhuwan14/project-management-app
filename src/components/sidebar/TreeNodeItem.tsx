@@ -102,10 +102,12 @@ export default function TreeNodeItem(props: Props) {
           />
         )}
         {canManage && !passThrough && !renaming && (
-          <Menu as="div" className="relative">
+          <Menu as="div" className="relative shrink-0">
             <MenuButton
               aria-label={`Options for ${container.name}`}
-              className="invisible rounded px-1 text-slate-400 hover:bg-slate-200 group-hover:visible data-open:visible"
+              className={`rounded px-1 text-slate-400 hover:bg-slate-200 focus:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 data-open:opacity-100 ${
+                selected ? 'opacity-70' : 'opacity-0'
+              }`}
             >
               ⋯
             </MenuButton>
