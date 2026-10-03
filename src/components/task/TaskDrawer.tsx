@@ -54,7 +54,10 @@ export default function TaskDrawer() {
     const current = statusesSelectors.selectById(state, task.statusId);
     const targets = selectListStatuses(state, toListId);
     const target = targets.find((s) => s.category === current?.category) ?? targets[0];
-    if (!target) return;
+    if (!target) {
+      dispatch(addToast({ message: 'That list has no statuses to move into', tone: 'error' }));
+      return;
+    }
     const siblings = tasksSelectors
       .selectAll(state)
       .filter((t) => t.primaryListId === toListId && t.statusId === target.id && t.archivedAt === null);
