@@ -1,7 +1,8 @@
 import { FAKE_LATENCY } from '../../api/fakeApi';
+import type { Container } from '../../types';
 import { setCurrentUser, setSimulateFailures } from '../slices/sessionSlice';
 import { selectList } from '../slices/uiSlice';
-import { containersSelectors, makeStore } from '../store';
+import { containersSelectors, makeStore, statusesSelectors } from '../store';
 import { archiveContainer, createContainer, renameContainer, reorderContainer } from './containerThunks';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
@@ -76,4 +77,32 @@ test('validation runs before the permission check', async () => {
   store.dispatch(setCurrentUser('u-bob'));
   const res = await store.dispatch(createContainer({ name: 'Bad', type: 'list', parentId: 'sp-eng' }));
   expect(res.payload).toEqual({ error: { code: 'VALIDATION', message: expect.any(String) } });
+});
+
+test('creating a list also creates its default todo/in_progress/done statuses, ordered correctly', async () => {
+  const store = makeStore();
+  const res = await store.dispatch(createContainer({ name: 'New List', type: 'list', parentId: 'f-q4' }));
+  expect(createContainer.fulfilled.match(res)).toBe(true);
+  const listId = (res.payload as Container).id;
+  const statuses = statusesSelectors.selectAll(store.getState()).filter((s) => s.listId === listId);
+  expect(statuses).toHaveLength(3);
+  expect(statuses.map((s) => s.category)).toEqual(['todo', 'in_progress', 'done']);
+  expect(statuses[0].position).toBeLessThan(statuses[1].position);
+  expect(statuses[1].position).toBeLessThan(statuses[2].position);
+});
+
+test('creating a space does not create any statuses', async () => {
+  const store = makeStore();
+  const before = statusesSelectors.selectTotal(store.getState());
+  const res = await store.dispatch(createContainer({ name: 'New Space', type: 'space', parentId: 'ws-1' }));
+  expect(createContainer.fulfilled.match(res)).toBe(true);
+  expect(statusesSelectors.selectTotal(store.getState())).toBe(before);
+});
+
+test('creating a folder does not create any statuses', async () => {
+  const store = makeStore();
+  const before = statusesSelectors.selectTotal(store.getState());
+  const res = await store.dispatch(createContainer({ name: 'New Folder', type: 'folder', parentId: 'sp-eng' }));
+  expect(createContainer.fulfilled.match(res)).toBe(true);
+  expect(statusesSelectors.selectTotal(store.getState())).toBe(before);
 });

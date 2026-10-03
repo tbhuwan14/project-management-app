@@ -30,7 +30,12 @@ export const seedContainers: Container[] = [
   container('l-roadmap', 'Leadership Roadmap', 'list', 'f-web', 1, 'private'),
 ];
 
-const statusTriple = (listId: string): Status[] => [
+/**
+ * Default todo/in_progress/done status set for a list. Every list — seeded or
+ * created later through the UI — must own one of these (containerThunks.createContainer
+ * reuses this exact helper so a UI-created list is indistinguishable from a seeded one).
+ */
+export const statusTriple = (listId: string): Status[] => [
   { id: `${listId}-todo`, listId, name: 'To Do', category: 'todo', color: 'gray', position: pos(0) },
   { id: `${listId}-prog`, listId, name: 'In Progress', category: 'in_progress', color: 'blue', position: pos(1) },
   { id: `${listId}-done`, listId, name: 'Done', category: 'done', color: 'green', position: pos(2) },
