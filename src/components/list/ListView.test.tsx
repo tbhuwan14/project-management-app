@@ -2,7 +2,8 @@ import '@testing-library/jest-dom';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FAKE_LATENCY } from '../../api/fakeApi';
-import { seedTasks } from '../../store/seed';
+import { formatDue } from '../../lib/date';
+import { daysFromNow, seedTasks } from '../../store/seed';
 import { tasksAdapter } from '../../store/slices/tasksSlice';
 import { renderApp } from '../../test/renderApp';
 
@@ -84,10 +85,10 @@ test('Due date header sorts chronologically with null due dates last in both dir
 
 test('a completed task keeps a past due date but does not render it as overdue', () => {
   renderApp({ ...uiListMode, ui: { ...uiListMode.ui, selectedListId: 'l-backlog' } });
-  // Pick bundler (t-5, l-backlog) is Done with a due date of 2026-09-15 —
-  // in the past — but finished work must not read as late.
+  // Pick bundler (t-5, l-backlog) is Done with a due date 15 days ago —
+  // always in the past — but finished work must not read as late.
   const row = screen.getByTestId('row-t-5');
-  const dueCell = within(row).getByText('Sep 15');
+  const dueCell = within(row).getByText(formatDue(daysFromNow(-15)));
   expect(dueCell).not.toHaveClass('text-red-600', 'font-semibold');
   expect(dueCell).toHaveClass('text-slate-500');
 });
