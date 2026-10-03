@@ -4,7 +4,9 @@ import { nextPosition } from '../../lib/ordering';
 import { canManageContainers } from '../../lib/permissions';
 import { validateContainerParent } from '../../lib/validation';
 import { appError, type AppError, type Container, type ContainerType, type Visibility } from '../../types';
+import { statusTriple } from '../seed';
 import { containerPatched, containerUpserted } from '../slices/containersSlice';
+import { statusUpserted } from '../slices/statusesSlice';
 import { selectList } from '../slices/uiSlice';
 import { containersSelectors, permissionEntities, type RootState } from '../store';
 
@@ -42,6 +44,16 @@ export const createContainer = createAsyncThunk<
     updatedAt: now(),
   };
   dispatch(containerUpserted(container));
+  // Every list must own a status set (minimum todo/in_progress/done) or it's unusable:
+  // its board renders no columns, and createTask/moveTask into it reject with VALIDATION.
+  // Mirror the seed's own statusTriple exactly so a UI-created list is indistinguishable
+  // from a seeded one. Status ids are namespaced by the (nanoid-unique) container id, so
+  // they can never collide with another list's statuses.
+  if (container.type === 'list') {
+    for (const status of statusTriple(container.id)) {
+      dispatch(statusUpserted(status));
+    }
+  }
   return container;
 });
 

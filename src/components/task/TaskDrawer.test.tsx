@@ -3,9 +3,12 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FAKE_LATENCY } from '../../api/fakeApi';
 import { renderApp } from '../../test/renderApp';
+import { seedContainers } from '../../store/seed';
+import { containersAdapter } from '../../store/slices/containersSlice';
 import { tasksSelectors } from '../../store/store';
 import { createTask } from '../../store/thunks/taskThunks';
 import { setSimulateFailures } from '../../store/slices/sessionSlice';
+import type { Container } from '../../types';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
 
@@ -234,4 +237,28 @@ test('archiving the task closes the drawer and removes it from the board', async
   await user.click(await screen.findByText('Archive task'));
   await waitFor(() => expect(store.getState().ui.drawerTaskId).toBeNull());
   expect(tasksSelectors.selectById(store.getState(), 't-6')?.archivedAt).not.toBeNull();
+});
+
+test('moving to a list with no statuses toasts an error and does not move the task', async () => {
+  const user = userEvent.setup();
+  // Synthetic: a list with zero statuses. Defect A makes this unreachable through the
+  // normal "create a list" UI flow, but moveToList's `if (!target) return;` guard must
+  // still surface a toast instead of bailing silently when this defensive case is hit.
+  const statuslessList: Container = {
+    id: 'l-empty', name: 'Empty List', type: 'list', parentId: 'f-q4',
+    position: 99999, visibility: 'public',
+    archivedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const store = renderApp({
+    ...uiWithDrawer,
+    containers: containersAdapter.setAll(containersAdapter.getInitialState(), [...seedContainers, statuslessList]),
+  });
+  await screen.findByRole('dialog');
+  await user.selectOptions(screen.getByLabelText('Move to list'), 'l-empty');
+  const toast = await screen.findByRole('alert');
+  expect(toast).toHaveClass('text-red-800');
+  await user.click(within(toast).getByRole('button', { name: 'Dismiss' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  expect(tasksSelectors.selectById(store.getState(), 't-6')?.primaryListId).toBe('l-sprint');
 });

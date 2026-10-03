@@ -1,6 +1,8 @@
 import { FAKE_LATENCY } from '../../api/fakeApi';
+import type { Container } from '../../types';
 import { setCurrentUser } from '../slices/sessionSlice';
-import { makeStore, tasksSelectors } from '../store';
+import { makeStore, statusesSelectors, tasksSelectors } from '../store';
+import { createContainer } from './containerThunks';
 import { archiveTask, createTask, moveTask, updateTask } from './taskThunks';
 
 beforeAll(() => { FAKE_LATENCY.ms = 0; });
@@ -89,6 +91,29 @@ test('archiveTask cascades to subtasks', async () => {
   const state = store.getState();
   expect(tasksSelectors.selectById(state, 't-6')?.archivedAt).not.toBeNull();
   expect(tasksSelectors.selectById(state, subId)?.archivedAt).not.toBeNull();
+});
+
+test('createTask succeeds in a freshly created list and lands in its todo column', async () => {
+  const store = makeStore();
+  const listRes = await store.dispatch(createContainer({ name: 'Fresh List', type: 'list', parentId: 'f-q4' }));
+  const listId = (listRes.payload as Container).id;
+  const res = await store.dispatch(createTask({ listId, title: 'First task' }));
+  expect(createTask.fulfilled.match(res)).toBe(true);
+  const task = res.payload as { statusId: string };
+  const status = statusesSelectors.selectById(store.getState(), task.statusId);
+  expect(status?.category).toBe('todo');
+});
+
+test('moveTask succeeds into a freshly created list', async () => {
+  const store = makeStore();
+  const listRes = await store.dispatch(createContainer({ name: 'Fresh List', type: 'list', parentId: 'f-q4' }));
+  const listId = (listRes.payload as Container).id;
+  const targetStatus = statusesSelectors
+    .selectAll(store.getState())
+    .find((s) => s.listId === listId && s.category === 'todo')!;
+  const res = await store.dispatch(moveTask({ id: 't-6', toListId: listId, statusId: targetStatus.id, position: 50 }));
+  expect(moveTask.fulfilled.match(res)).toBe(true);
+  expect(tasksSelectors.selectById(store.getState(), 't-6')?.primaryListId).toBe(listId);
 });
 
 test('archiveTask on an already-archived task is NOT_FOUND and does not rewrite timestamps', async () => {
