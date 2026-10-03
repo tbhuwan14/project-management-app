@@ -1,0 +1,7 @@
+node_modules
+dist
+.vercel
+
+# Local-only working docs (design spec, implementation plan, agent scratch)
+docs/superpowers/
+.superpowers/
