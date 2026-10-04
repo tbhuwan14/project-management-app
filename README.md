@@ -3,7 +3,7 @@
 A mini project-management app (ClickUp/Asana at hobby scale) built for the SDE2 Frontend take-home. Single workspace, container hierarchy, kanban + list views, a task drawer with subtasks, and a client-side permission model with an in-app user switcher. **Frontend-only** — a typed Redux store seeded from fixtures, persisted to `localStorage`.
 
 **Live demo:** https://project-management-app-mu-liart.vercel.app
-**Demo video:** _to be added_
+**Demo video:** https://www.loom.com/share/15b70e72f6274321a8e2c8e8b79981cc
 
 ## Run locally
 
